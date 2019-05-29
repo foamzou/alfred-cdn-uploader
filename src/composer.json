@@ -1,0 +1,6 @@
+{
+    "require": {
+        "qiniu/php-sdk": "^7.2",
+        "ramsey/uuid": "^3.8"
+    }
+}
