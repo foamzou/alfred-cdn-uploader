@@ -6,11 +6,21 @@ class Client
 {
     public function run($fileList)
     {
+        $shouldCompressForPng = getenv('compress_png') ? true : false;
         $fileList = explode("\t", $fileList);
-
+        $tmpFileList = [];
+        // fileList 为空，说明是文件来自剪贴板
         if (empty($fileList) || empty($fileList[0])) {
             $tmpFile = '/tmp/alfred-uploader-' . time() . '.png';
+            $tmpFileList[] = $tmpFile;
             shell_exec('bin/pngpaste ' . $tmpFile);
+            if ($shouldCompressForPng) {
+                $compressedFile = $tmpFile . "-compressed.png";
+                shell_exec("bin/pngquant -o {$compressedFile} {$tmpFile}");
+                $tmpFileList[] = $compressedFile;
+                $tmpFile = $compressedFile;
+            }
+            
             $fileList = [$tmpFile];
         }
         $response = [];
@@ -20,13 +30,21 @@ class Client
 
             $ext = explode('.', $file);
             $ext = $ext[count($ext) - 1];
+            if ($shouldCompressForPng && $ext == "png") {
+                $compressedFile = $file . "-compressed.png";
+                shell_exec("bin/pngquant -o {$compressedFile} {$file}");
+                $file = $compressedFile;
+                $tmpFileList[] = $compressedFile;
+            }
             list($filename, $url) = QiniuProvider::upload($filename, $ext, $file);
             $response[] = [
                 'name' => $filename,
                 'url' => $url,
             ];
         }
-        if (!empty($tmpFile)) {
+
+        // clear tmp file
+        foreach ($tmpFileList as $tmpFile) {
             @unlink($tmpFile);
         }
 
